@@ -2,12 +2,15 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
 
-int main()
+int main(int argc, char *argv[])
 {
     try
     {
-        Balancer balancer("./../../balancer/file.txt"); //такой формат файла пока идет разработка, потом я в отдельную папку вынесу все исполняемые и там сделаю файл конфигурации
+        std::stringstream filepath;
+        filepath << argv[1];
+        Balancer balancer(filepath.str());
         balancer.connect();
         balancer.distribute();
     }
