@@ -91,7 +91,7 @@ void Balancer::distribute()
     for(int i = 0; i < configuration.servers.size(); i++)
     {
         sockaddr_in temp;
-        temp.sin_port = configuration.servers[i];
+        temp.sin_port = htons(configuration.servers[i]);
         temp.sin_addr.s_addr = INADDR_ANY; 
         temp.sin_family = AF_INET;
         servers.push_back(temp);
@@ -108,7 +108,6 @@ void Balancer::distribute()
         while(recieveTime.size() > 0 && ((std::chrono::system_clock::now() - recieveTime.front())/1ms > 1000)) // если самая старая запись времени была больше секунды назад, мы ее удаляем, а также удаляем все записи со времени больше секунды
         {
             recieveTime.pop();
-            std::cout << "recievetime size: " << recieveTime.size() << '\n';
         }
         if(recieveTime.size() <= configuration.N)
         {
@@ -121,15 +120,13 @@ void Balancer::distribute()
             recieveTime.push(std::chrono::system_clock::now());
             std::cout << "Recieved packet from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "\n";
             std::cout << "data: " << buffer;
-            std::cout << "since latest data: " << abs(recieveTime.front() - std::chrono::system_clock::now())/1ms << '\n';
-            std::cout << "Iterator = " << serverIterator << '\n';
 
             if(sendto(sockfd, buffer, recieveLength, 0, (const sockaddr*)&servers[serverIterator], sizeof(serverAddress)) < 0)
             {
                 throw std::runtime_error("bad sending");
             }
 
-            std::cout << "sent packet to " << inet_ntoa(servers[serverIterator].sin_addr) << ":" << ntohs(servers[serverIterator].sin_port) << "\n";
+            std::cout << "sent packet to " << inet_ntoa(servers[serverIterator].sin_addr) << ":" << ntohs(servers[serverIterator].sin_port) << "\n\n";
 
             serverIterator++;
             serverIterator %= configuration.servers.size();

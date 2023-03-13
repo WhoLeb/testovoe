@@ -21,7 +21,7 @@ void die(std::string s)
 	exit(1);
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	struct sockaddr_in si_other;
 	int s, i;
@@ -43,7 +43,7 @@ int main(void)
 		fprintf(stderr, "inet_aton() failed\n");
 		exit(1);
 	}
-    int counter = 0;
+    unsigned long long counter = 0;
 	while(1)
 	{		
         counter++;
@@ -52,7 +52,9 @@ int main(void)
 		//send the message
 		if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen)==-1)
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		using namespace std::chrono_literals;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds((1000)/(atoi(argv[1]))));
 		
 	}
 
