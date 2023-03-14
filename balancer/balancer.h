@@ -22,11 +22,11 @@ private:
     struct Config
     {        
         unsigned int inPort = 0;
-        std::vector<unsigned int> servers{};
+        std::vector<sockaddr_in> servers{};
         unsigned int N = 0;
     } configuration;
 
-    sockaddr_in serverAddress, clientAddress;
+    sockaddr_in balancerAddress, clientAddress;
     char buffer[1024];
     int sockfd;
 

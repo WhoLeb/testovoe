@@ -8,6 +8,8 @@
 #include <thread>
 #include <unistd.h>
 
+#define DEBUG 1
+
 Balancer::Balancer(const std::string& filename)
 {
     Config returnConfig{};
@@ -37,10 +39,24 @@ Balancer::Balancer(const std::string& filename)
             while ((pos = line.find(", ")) != std::string::npos) 
             {
                 token = line.substr(0, pos);
-                returnConfig.servers.push_back(atoi(token.c_str()));
+                int column = token.find(":");
+
+                sockaddr_in temp;
+                inet_pton(AF_INET, token.substr(0, column).c_str(), &temp.sin_addr);
+                temp.sin_port = htons(atoi(token.substr(column+1, token.size()).c_str()));
+                temp.sin_family = AF_INET;
+
+
+                returnConfig.servers.push_back(temp);
                 line.erase(0, pos + 2);
             }
-            returnConfig.servers.push_back(atoi(line.c_str()));
+            int column = token.find(":");
+            sockaddr_in temp;
+            inet_pton(AF_INET, line.substr(0, column).c_str(), &temp.sin_addr);
+            temp.sin_port = htons(atoi(line.substr(column+1, line.size()).c_str()));
+            temp.sin_family = AF_INET;
+
+            returnConfig.servers.push_back(temp);
         }
         else if (parameterName == "N")
         {
@@ -68,13 +84,13 @@ void Balancer::connect()
         throw std::runtime_error("failed to create a socket");
     }
 
-    memset(&serverAddress, 0, sizeof(serverAddress));
+    memset(&balancerAddress, 0, sizeof(balancerAddress));
     memset(&clientAddress, 0, sizeof(clientAddress));
-    serverAddress.sin_family    = AF_INET; // IPv4
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(configuration.inPort);
+    balancerAddress.sin_family    = AF_INET; // IPv4
+    balancerAddress.sin_addr.s_addr = INADDR_ANY;
+    balancerAddress.sin_port = htons(configuration.inPort);
 
-    if ( bind(sockfd, (const struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0 )
+    if ( bind(sockfd, (const struct sockaddr*)&balancerAddress, sizeof(balancerAddress)) < 0 )
     {
         throw std::runtime_error("failed to bind server socket");
     }
@@ -87,15 +103,7 @@ void Balancer::distribute()
     socketLength = sizeof(clientAddress);
     int recieveLength;
 
-    std::vector<sockaddr_in> servers;
-    for(int i = 0; i < configuration.servers.size(); i++)
-    {
-        sockaddr_in temp;
-        temp.sin_port = htons(configuration.servers[i]);
-        temp.sin_addr.s_addr = INADDR_ANY; 
-        temp.sin_family = AF_INET;
-        servers.push_back(temp);
-    }
+    
     
     std::queue<std::chrono::time_point<std::chrono::system_clock>> recieveTime;
 
@@ -104,33 +112,28 @@ void Balancer::distribute()
     using namespace std::chrono_literals;
     while (true)
     {
-        
-        while(recieveTime.size() > 0 && ((std::chrono::system_clock::now() - recieveTime.front())/1ms > 1000)) // если самая старая запись времени была больше секунды назад, мы ее удаляем, а также удаляем все записи со времени больше секунды
+        if((recieveLength = recvfrom(sockfd, buffer, BUFFLEN, 0, (struct sockaddr*) &clientAddress, &socketLength)) < 0)
         {
-            recieveTime.pop();
+            throw std::runtime_error("bad reception");
         }
-        if(recieveTime.size() <= configuration.N)
-        {
-            std::cout << "waiting for data...\n";            
-            if((recieveLength = recvfrom(sockfd, buffer, BUFFLEN, 0, (struct sockaddr*) &clientAddress, &socketLength)) < 0)
-            {
-                throw std::runtime_error("bad reception");
-            }
-            buffer[recieveLength] = '\0';
-            recieveTime.push(std::chrono::system_clock::now());
-            std::cout << "Recieved packet from " << inet_ntoa(clientAddress.sin_addr) << ":" << ntohs(clientAddress.sin_port) << "\n";
-            std::cout << "data: " << buffer;
+        buffer[recieveLength] = '\0';
+        recieveTime.push(std::chrono::system_clock::now());
 
-            if(sendto(sockfd, buffer, recieveLength, 0, (const sockaddr*)&servers[serverIterator], sizeof(serverAddress)) < 0)
+        if(((std::chrono::system_clock::now() - recieveTime.front())/1ms <= 1000))
+        {
+
+            if(sendto(sockfd, buffer, recieveLength, 0, (const sockaddr*)&configuration.servers[serverIterator], sizeof(balancerAddress)) < 0)
             {
                 throw std::runtime_error("bad sending");
             }
-
-            std::cout << "sent packet to " << inet_ntoa(servers[serverIterator].sin_addr) << ":" << ntohs(servers[serverIterator].sin_port) << "\n\n";
-
             serverIterator++;
             serverIterator %= configuration.servers.size();
-        }        
+        }  
+
+        while(recieveTime.size() > 0 && ((std::chrono::system_clock::now() - recieveTime.front())/1ms >= 1000)) // если самая старая запись времени была больше секунды назад, мы ее удаляем, а также удаляем все записи со времени больше секунды
+        {
+            recieveTime.pop();
+        }
     }    
     
 }

@@ -29,15 +29,15 @@ int main(int argc, char *argv[])
         throw std::runtime_error("failed to create a socket");
     }
     
-    sockaddr_in serverAddress, clientAddress;
+    sockaddr_in balancerAddress, clientAddress;
 
-    memset(&serverAddress, 0, sizeof(serverAddress));
+    memset(&balancerAddress, 0, sizeof(balancerAddress));
     memset(&clientAddress, 0, sizeof(clientAddress));
-    serverAddress.sin_family    = AF_INET; // IPv4
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-    serverAddress.sin_port = htons(atoi(argv[1]));
+    balancerAddress.sin_family    = AF_INET; // IPv4
+    balancerAddress.sin_addr.s_addr = INADDR_ANY;
+    balancerAddress.sin_port = htons(atoi(argv[1]));
 
-    if ( bind(sockfd, (const struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0 )
+    if ( bind(sockfd, (const struct sockaddr*)&balancerAddress, sizeof(balancerAddress)) < 0 )
     {
         throw std::runtime_error("failed to bind server socket");
     }
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     socketLength = sizeof(clientAddress);
     int recieveLength;
 
-    std::cout << "server address " << inet_ntoa(serverAddress.sin_addr) << ":" << ntohs(serverAddress.sin_port) << "\n";
+    std::cout << "server address " << inet_ntoa(balancerAddress.sin_addr) << ":" << ntohs(balancerAddress.sin_port) << "\n";
 
 	//keep listening for data
 	while(1)

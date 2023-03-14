@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include<chrono>
+#include <iostream>
 
 
 #define SERVER "127.0.0.1"
@@ -50,9 +51,11 @@ int main(int argc, char *argv[])
         std::string tempstr = "hello " + std::to_string(counter) + "\n";
         strcpy(message, tempstr.c_str());
 		//send the message
-		if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen)==-1)
+		if (sendto(s, message, strlen(message) , 0 , (struct sockaddr *) &si_other, slen)==-1);
 
 		using namespace std::chrono_literals;
+
+		std::cout << "sent message " << message << '\n';
 
         std::this_thread::sleep_for(std::chrono::milliseconds((1000)/(atoi(argv[1]))));
 		
