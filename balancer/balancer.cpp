@@ -8,7 +8,7 @@
 #include <thread>
 #include <unistd.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 Balancer::Balancer(const std::string& filename)
 {
@@ -109,6 +109,8 @@ void Balancer::distribute()
 
     size_t serverIterator = 0;
 
+    unsigned int packagesSent = 0;
+
     using namespace std::chrono_literals;
     while (true)
     {
@@ -117,22 +119,35 @@ void Balancer::distribute()
             throw std::runtime_error("bad reception");
         }
         buffer[recieveLength] = '\0';
-        recieveTime.push(std::chrono::system_clock::now());
 
-        if(((std::chrono::system_clock::now() - recieveTime.front())/1ms <= 1000))
+        
+    #if DEBUG
+        std::cout << "Latest message was " << (std::chrono::system_clock::now() - recieveTime.front())/1ms << " milliseconds ago\n";
+        std::cout << recieveTime.size() << " packages recieved last second\n";
+    #endif
+
+        if(packagesSent <= configuration.N)
         {
-
+            recieveTime.push(std::chrono::system_clock::now());
             if(sendto(sockfd, buffer, recieveLength, 0, (const sockaddr*)&configuration.servers[serverIterator], sizeof(balancerAddress)) < 0)
             {
                 throw std::runtime_error("bad sending");
             }
+            packagesSent++;
             serverIterator++;
             serverIterator %= configuration.servers.size();
+        #if DEBUG
+            std::cout << "Sent message to server " << serverIterator << '\n';
+            std::cout << packagesSent << " packages were sent in the last second\n";
+            std::cout << "\n\n";
+        #endif
+
         }  
 
-        while(recieveTime.size() > 0 && ((std::chrono::system_clock::now() - recieveTime.front())/1ms >= 1000)) // если самая старая запись времени была больше секунды назад, мы ее удаляем, а также удаляем все записи со времени больше секунды
+        while(recieveTime.size() > 0 && ((std::chrono::system_clock::now() - recieveTime.front())/1ms > 1000)) // если самая старая запись времени была больше секунды назад, мы ее удаляем, а также удаляем все записи со времени больше секунды
         {
             recieveTime.pop();
+            packagesSent--;
         }
     }    
     
